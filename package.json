@@ -1,0 +1,45 @@
+{
+  "name": "clasp-kit",
+  "version": "0.1.0",
+  "description": "Zero-config project bootstrapper and workflow helper for Google Apps Script projects using clasp.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "npm@10.8.2",
+  "bin": {
+    "clasp-kit": "./src/cli.js",
+    "clasp-init": "./src/cli.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "pack:dry-run": "npm pack --dry-run",
+    "check": "npm test && npm run pack:dry-run"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "google-apps-script",
+    "apps-script",
+    "clasp",
+    "google-workspace",
+    "gas",
+    "cli"
+  ],
+  "peerDependencies": {
+    "@google/clasp": ">=2"
+  },
+  "peerDependenciesMeta": {
+    "@google/clasp": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ]
+}

@@ -1,0 +1,536 @@
+<script>
+    (function () {
+        var body = document.body;
+        var state = {
+            view: body.dataset.view,
+            model: body.dataset.model,
+            assessmentId: body.dataset.assessmentId,
+            baseUrl: body.dataset.baseUrl,
+            rubric: null,
+        };
+        var evidenceTypes = [];
+        function esc(value) {
+            return String(value == null ? "" : value).replace(
+                /[&<>"']/g,
+                function (c) {
+                    return {
+                        "&": "&amp;",
+                        "<": "&lt;",
+                        ">": "&gt;",
+                        '"': "&quot;",
+                        "'": "&#39;",
+                    }[c];
+                },
+            );
+        }
+        function byId(id) {
+            return document.getElementById(id);
+        }
+        function ratingClass(r) {
+            return (
+                "rating-" +
+                String(r || "d")
+                    .toLowerCase()
+                    .replace(/\s+/g, "-")
+            );
+        }
+        function ratingLetterClass(r) {
+            return (
+                "r-" +
+                String(r || "d")
+                    .toLowerCase()
+                    .charAt(0)
+            );
+        }
+        function ratingForScore(score) {
+            score = Number(score);
+            if (score >= 85) return "S";
+            if (score >= 70) return "A";
+            if (score >= 55) return "B";
+            if (score >= 40) return "C";
+            return "D";
+        }
+        function formatDate(value) {
+            if (!value) return "";
+            var d = new Date(value);
+            if (isNaN(d.getTime())) return esc(value);
+            return d.toLocaleString();
+        }
+        function buildInsertedRatingHtml(rating, score, resultUrl) {
+            var letter = String(rating || "").toUpperCase();
+            return (
+                '<span class="inserted-rating">' +
+                '<span class="rating-letter ' +
+                ratingLetterClass(letter) +
+                '">' +
+                esc(letter) +
+                "</span>" +
+                '<span class="rating-score"> (' +
+                Number(score).toFixed(2) +
+                "/100), </span>" +
+                '<a class="rating-link" href="' +
+                esc(resultUrl) +
+                '" target="_top">Assessment Result</a>' +
+                "</span>"
+            );
+        }
+        function showError(el, msg) {
+            if (el) {
+                el.textContent = msg;
+                el.style.display = "block";
+            }
+        }
+        function callServer(fnName, args, ok, fail) {
+            var runner = google.script.run
+                .withSuccessHandler(function (res) {
+                    if (res && res.success === false) {
+                        fail(res.error || "Request failed.");
+                    } else {
+                        ok(res);
+                    }
+                })
+                .withFailureHandler(function (err) {
+                    fail(err && err.message ? err.message : String(err));
+                });
+            runner[fnName].apply(runner, args || []);
+        }
+        if (state.view === "form") initForm();
+        if (state.view === "result") loadResult();
+        if (state.view === "insert") initInsert();
+        if (state.view === "latest") loadLatest();
+        function initForm() {
+            if (
+                state.model !== "SCHOOL_ACTIVITY" &&
+                state.model !== "ASSET_PROCUREMENT"
+            ) {
+                showError(
+                    byId("form-error"),
+                    "Invalid or missing proposal model.",
+                );
+                return;
+            }
+            callServer(
+                "getRubricForClient",
+                [state.model],
+                function (rubric) {
+                    state.rubric = rubric;
+                    evidenceTypes = rubric.evidenceTypes || [];
+                    renderForm(rubric);
+                    updatePreview();
+                },
+                function (msg) {
+                    showError(byId("form-error"), msg);
+                },
+            );
+            byId("assessment-form").addEventListener("submit", submitForm);
+        }
+        function renderForm(rubric) {
+            byId("form-title").textContent = rubric.label;
+            if (rubric.waterNAAllowed) {
+                byId("water-na-box").style.display = "block";
+                byId("water-na-text").textContent = rubric.waterNAText;
+                byId("water-na").addEventListener("change", function () {
+                    renderIndicators();
+                    updatePreview();
+                });
+            }
+            renderIndicators();
+            var capHtml =
+                '<section class="card"><h2>Cap-rule checklist</h2><p class="helper">Tick any condition that applies. Cap rules limit the final rating but do not change the raw score.</p>';
+            rubric.capRules.forEach(function (rule) {
+                capHtml +=
+                    '<label><input type="checkbox" class="cap-flag" data-cap-id="' +
+                    esc(rule.id) +
+                    '" style="width:auto"> ' +
+                    esc(rule.label) +
+                    ' <span class="helper">(max: ' +
+                    esc(rule.maxRating) +
+                    ")</span></label>";
+            });
+            capHtml += "</section>";
+            byId("cap-container").innerHTML = capHtml;
+        }
+        function adjustedWeight(ind) {
+            var waterNA = byId("water-na") && byId("water-na").checked;
+            if (!(state.model === "ASSET_PROCUREMENT" && waterNA))
+                return Number(ind.weight);
+            if (ind.pillar === "Water") return 0;
+            return Math.round(ind.weight * 1.25 * 100) / 100;
+        }
+        function renderIndicators() {
+            var waterNA = byId("water-na") && byId("water-na").checked;
+            var html = "";
+            var current = "";
+            state.rubric.indicators.forEach(function (ind) {
+                if (ind.pillar !== current) {
+                    if (current) html += "</div>";
+                    current = ind.pillar;
+                    html += '<div class="card"><h2>' + esc(current) + "</h2>";
+                }
+                var disabled = waterNA && ind.pillar === "Water";
+                var weight = adjustedWeight(ind);
+                html +=
+                    '<article class="indicator ' +
+                    (disabled ? "water-disabled" : "") +
+                    '" data-pillar="' +
+                    esc(ind.pillar) +
+                    '" data-indicator-id="' +
+                    esc(ind.id) +
+                    '" data-weight="' +
+                    esc(weight) +
+                    '">';
+                html +=
+                    "<header><div><h3>" +
+                    esc(ind.id) +
+                    " — " +
+                    esc(ind.title) +
+                    '</h3><p class="helper">' +
+                    esc(ind.pillar) +
+                    '</p></div><span class="weight">' +
+                    esc(weight) +
+                    " pts</span></header>";
+                html += '<ol class="score-help" start="0">';
+                ind.scoreDescriptions.forEach(function (d) {
+                    html += "<li>" + esc(d) + "</li>";
+                });
+                html += "</ol>";
+                html +=
+                    '<div class="form-row"><div><label>Score 0–3</label><select class="score" ' +
+                    (disabled ? "disabled" : "") +
+                    '><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></div><div><label>Evidence type</label><select class="evidence-type" ' +
+                    (disabled ? "disabled" : "") +
+                    '><option value="">Select evidence type</option>';
+                evidenceTypes.forEach(function (type) {
+                    html +=
+                        '<option value="' +
+                        esc(type) +
+                        '">' +
+                        esc(type) +
+                        "</option>";
+                });
+                html +=
+                    '</select></div></div><div class="form-row"><div><label>Evidence note</label><textarea class="evidence-note" ' +
+                    (disabled ? "disabled" : "") +
+                    '></textarea><div class="evidence-warning">Score 2 or 3 should include an evidence note or evidence URL.</div></div><div><label>Evidence link</label><input class="evidence-url" ' +
+                    (disabled ? "disabled" : "") +
+                    ' placeholder="Optional URL"></div></div></article>';
+            });
+            if (current) html += "</div>";
+            byId("rubric-container").innerHTML = html;
+            Array.prototype.forEach.call(
+                document.querySelectorAll(
+                    ".score,.evidence-note,.evidence-url",
+                ),
+                function (el) {
+                    el.addEventListener("input", updatePreview);
+                    el.addEventListener("change", updatePreview);
+                },
+            );
+        }
+        function collectResponses() {
+            return Array.prototype.map.call(
+                document.querySelectorAll(".indicator"),
+                function (card) {
+                    var scoreEl = card.querySelector(".score");
+                    return {
+                        indicatorId: card.dataset.indicatorId,
+                        score:
+                            scoreEl && !scoreEl.disabled
+                                ? Number(scoreEl.value)
+                                : 0,
+                        evidenceType:
+                            (card.querySelector(".evidence-type") || {})
+                                .value || "",
+                        evidenceNote:
+                            (card.querySelector(".evidence-note") || {})
+                                .value || "",
+                        evidenceUrl:
+                            (card.querySelector(".evidence-url") || {}).value ||
+                            "",
+                    };
+                },
+            );
+        }
+        function updatePreview() {
+            var total = 0;
+            Array.prototype.forEach.call(
+                document.querySelectorAll(".indicator"),
+                function (card) {
+                    var scoreEl = card.querySelector(".score");
+                    var score =
+                        scoreEl && !scoreEl.disabled
+                            ? Number(scoreEl.value)
+                            : 0;
+                    var weight = Number(card.dataset.weight || 0);
+                    total += (score / 3) * weight;
+                    var warn = card.querySelector(".evidence-warning");
+                    var note = card
+                        .querySelector(".evidence-note")
+                        .value.trim();
+                    var url = card.querySelector(".evidence-url").value.trim();
+                    if (warn)
+                        warn.style.display =
+                            score > 1 && !note && !url ? "block" : "none";
+                },
+            );
+            total = Math.round(total * 100) / 100;
+            var rating = ratingForScore(total);
+            byId("preview-score").textContent = total.toFixed(2);
+            byId("preview-rating").textContent = rating;
+            byId("preview-rating").className = "chip " + ratingClass(rating);
+        }
+        function submitForm(evt) {
+            evt.preventDefault();
+            var btn = byId("submit-btn");
+            btn.disabled = true;
+            byId("form-error").style.display = "none";
+            var capFlags = {};
+            Array.prototype.forEach.call(
+                document.querySelectorAll(".cap-flag"),
+                function (el) {
+                    capFlags[el.dataset.capId] = el.checked;
+                },
+            );
+            var payload = {
+                model: state.model,
+                proposalTitle: byId("proposal-title").value,
+                proposalDocUrl: byId("proposal-doc-url").value,
+                assessmentAttached: byId("assessment-attached").checked,
+                waterNA: byId("water-na") ? byId("water-na").checked : false,
+                responses: collectResponses(),
+                capFlags: capFlags,
+            };
+            callServer(
+                "submitAssessment",
+                [payload],
+                function (res) {
+                    byId("submit-result").innerHTML =
+                        '<div class="alert success"><strong>Assessment saved.</strong><br>Final rating: ' +
+                        esc(res.finalRating) +
+                        " (" +
+                        Number(res.rawScore).toFixed(2) +
+                        '/100)<br><div class="actions"><a class="button" href="' +
+                        esc(res.resultUrl) +
+                        '" target="_top">Open assessment result</a><a class="button primary" href="' +
+                        esc(res.insertUrl) +
+                        '" target="_top">Insert rating into proposal</a></div><p class="helper">Saving an assessment does not edit the Google Doc automatically. Use Insert rating into proposal to replace &lt;&lt;rating&gt;&gt;.</p></div>';
+                    btn.disabled = false;
+                },
+                function (msg) {
+                    showError(byId("form-error"), msg);
+                    btn.disabled = false;
+                },
+            );
+        }
+        function loadResult() {
+            var root = byId("result-content");
+            callServer(
+                "apiGetAssessmentResult",
+                [state.assessmentId],
+                function (res) {
+                    var a = res.assessment;
+                    var rating = a.final_rating || "REVISION REQUIRED";
+                    var html =
+                        "<h1>" +
+                        esc(a.proposal_title) +
+                        '</h1><p><span class="chip ' +
+                        ratingClass(rating) +
+                        '">' +
+                        esc(rating) +
+                        "</span> <strong>" +
+                        Number(a.raw_score).toFixed(2) +
+                        "/100</strong></p><p>" +
+                        esc(a.short_description) +
+                        "</p>";
+                    html +=
+                        "<p><strong>Model:</strong> " +
+                        esc(a.proposal_model) +
+                        " · <strong>Status:</strong> " +
+                        esc(a.status) +
+                        "</p>";
+                    html +=
+                        '<p><span class="chip ' +
+                        (String(a.cap_applied) === "true" ||
+                        a.cap_applied === true
+                            ? "status-cap"
+                            : "status-ok") +
+                        '">' +
+                        (String(a.cap_applied) === "true" ||
+                        a.cap_applied === true
+                            ? "Cap applied"
+                            : "No cap") +
+                        "</span> " +
+                        esc(a.cap_reason || "") +
+                        "</p>";
+                    if (rating && rating !== "REVISION REQUIRED") {
+                        html +=
+                            '<p class="helper">Preview of inserted text:</p><p>' +
+                            buildInsertedRatingHtml(
+                                rating,
+                                a.raw_score,
+                                a.result_url || res.insertUrl,
+                            ) +
+                            "</p>";
+                    }
+                    html +=
+                        '<div class="actions"><a class="button primary" href="' +
+                        esc(res.insertUrl) +
+                        '" target="_top">Insert into proposal</a></div>';
+                    Object.keys(res.groupedResponses).forEach(
+                        function (pillar) {
+                            html +=
+                                '<section class="card"><h2>' +
+                                esc(pillar) +
+                                '</h2><div class="table-wrap"><table><thead><tr><th>Indicator</th><th>Weight</th><th>Score</th><th>Points</th><th>Evidence</th></tr></thead><tbody>';
+                            res.groupedResponses[pillar].forEach(function (r) {
+                                html +=
+                                    "<tr><td><strong>" +
+                                    esc(r.indicator_id) +
+                                    "</strong><br>" +
+                                    esc(r.indicator_title) +
+                                    "</td><td>" +
+                                    esc(r.weight) +
+                                    "</td><td>" +
+                                    esc(r.score_0_to_3) +
+                                    "</td><td>" +
+                                    esc(r.awarded_points) +
+                                    "</td><td>" +
+                                    esc(r.evidence_type) +
+                                    "<br>" +
+                                    esc(r.evidence_note) +
+                                    (r.evidence_url
+                                        ? '<br><a href="' +
+                                          esc(r.evidence_url) +
+                                          '" target="_blank">Evidence link</a>'
+                                        : "") +
+                                    "</td></tr>";
+                            });
+                            html += "</tbody></table></div></section>";
+                        },
+                    );
+                    root.innerHTML = html;
+                },
+                function (msg) {
+                    root.innerHTML =
+                        '<div class="alert error">' + esc(msg) + "</div>";
+                },
+            );
+        }
+        function initInsert() {
+            var summary = byId("insert-summary");
+            callServer(
+                "apiGetAssessmentResult",
+                [state.assessmentId],
+                function (res) {
+                    var a = res.assessment;
+                    summary.className = "";
+                    summary.innerHTML =
+                        "<h2>" +
+                        esc(a.proposal_title) +
+                        '</h2><p><span class="chip ' +
+                        ratingClass(a.final_rating) +
+                        '">' +
+                        esc(a.final_rating) +
+                        "</span> " +
+                        Number(a.raw_score).toFixed(2) +
+                        "/100 · Status: " +
+                        esc(a.status) +
+                        '</p><p class="helper">Preview of inserted text:</p><p>' +
+                        buildInsertedRatingHtml(
+                            a.final_rating,
+                            a.raw_score,
+                            a.result_url,
+                        ) +
+                        '</p><p class="helper">The document must contain the exact placeholder &lt;&lt;rating&gt;&gt;. Only the first occurrence will be replaced.</p>';
+                    if (a.proposal_doc_url)
+                        byId("insert-doc-url").value = a.proposal_doc_url;
+                },
+                function (msg) {
+                    summary.innerHTML =
+                        '<div class="alert error">' + esc(msg) + "</div>";
+                },
+            );
+            byId("insert-btn").addEventListener("click", function () {
+                var btn = byId("insert-btn");
+                btn.disabled = true;
+                byId("insert-error").style.display = "none";
+                byId("insert-success").style.display = "none";
+                callServer(
+                    "apiInsertAssessmentToProposal",
+                    [state.assessmentId, byId("insert-doc-url").value],
+                    function (res) {
+                        byId("insert-success").innerHTML =
+                            "<strong>Inserted successfully.</strong><br>" +
+                            esc(res.insertedText) +
+                            '<br><a href="' +
+                            esc(res.proposalDocUrl) +
+                            '" target="_blank">Open proposal document</a>';
+                        byId("insert-success").style.display = "block";
+                        btn.disabled = false;
+                    },
+                    function (msg) {
+                        showError(byId("insert-error"), msg);
+                        btn.disabled = false;
+                    },
+                );
+            });
+        }
+        function loadLatest() {
+            var root = byId("latest-content");
+            callServer(
+                "apiGetLatestAssessments",
+                [5],
+                function (res) {
+                    var items = res.assessments || [];
+                    if (!items.length) {
+                        root.innerHTML =
+                            '<div class="alert info">No assessments have been saved yet.</div>';
+                        return;
+                    }
+                    var html = '<div class="latest-list">';
+                    items.forEach(function (a) {
+                        var rating = a.final_rating || "REVISION REQUIRED";
+                        html +=
+                            '<div class="latest-item">' +
+                            '<div><span class="chip ' +
+                            ratingClass(rating) +
+                            ' rating-pill">' +
+                            esc(rating) +
+                            "</span></div>" +
+                            "<div>" +
+                            '<div class="title">' +
+                            esc(a.proposal_title || "(untitled)") +
+                            "</div>" +
+                            '<div class="meta">' +
+                            esc(a.proposal_model || "") +
+                            " · " +
+                            Number(a.raw_score || 0).toFixed(2) +
+                            "/100 · " +
+                            esc(a.status || "") +
+                            " · " +
+                            formatDate(a.created_at) +
+                            (a.created_by ? " · " + esc(a.created_by) : "") +
+                            "</div>" +
+                            "</div>" +
+                            '<div class="latest-actions">' +
+                            '<a class="button" href="' +
+                            esc(a.result_url) +
+                            '" target="_top">View</a>' +
+                            '<a class="button primary" href="' +
+                            esc(a.insert_url) +
+                            '" target="_top">Insert</a>' +
+                            "</div>" +
+                            "</div>";
+                    });
+                    html += "</div>";
+                    root.className = "";
+                    root.innerHTML = html;
+                },
+                function (msg) {
+                    root.innerHTML = "";
+                    showError(byId("latest-error"), msg);
+                },
+            );
+        }
+    })();
+</script>

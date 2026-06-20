@@ -1,0 +1,18 @@
+<section class="card">
+  <p class="eyebrow">New assessment</p>
+  <h1 id="form-title">Sustainability Rating Assessment</h1>
+  <p class="helper">Unknown must be scored as 0. Certification and ecolabel evidence are optional, not mandatory.</p>
+  <div id="form-error" class="alert error" style="display:none"></div>
+  <form id="assessment-form">
+    <div class="form-row">
+      <div><label for="proposal-title">Proposal title</label><input id="proposal-title" required></div>
+      <div><label for="proposal-doc-url">Google Docs proposal URL (optional)</label><input id="proposal-doc-url" placeholder="https://docs.google.com/document/d/.../edit"></div>
+    </div>
+    <label><input id="assessment-attached" type="checkbox" checked style="width:auto"> Assessment form is attached / available for review</label>
+    <div id="water-na-box" class="alert" style="display:none"><label><input id="water-na" type="checkbox" style="width:auto"> Water is genuinely N/A for this asset</label><p class="helper" id="water-na-text"></p></div>
+    <div id="rubric-container" class="loading">Loading rubric…</div>
+    <div id="cap-container"></div>
+    <div class="preview"><div><strong>Live preview:</strong> <span id="preview-score">0.00</span>/100 <span id="preview-rating" class="chip rating-d">D</span></div><button class="primary" type="submit" id="submit-btn">Submit Assessment</button></div>
+  </form>
+  <div id="submit-result"></div>
+</section>

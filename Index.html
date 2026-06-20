@@ -1,0 +1,108 @@
+<!doctype html>
+<html>
+    <head>
+        <base target="_top" />
+        <meta charset="utf-8" />
+        <?!= include('Styles'); ?>
+    </head>
+    <body
+        data-view="<?= view ?>"
+        data-model="<?= model ?>"
+        data-assessment-id="<?= assessmentId ?>"
+        data-base-url="<?= appBaseUrl ?>"
+    >
+        <header class="topbar">
+            <div class="brand">
+                <strong>Millennia World School</strong>
+                <span>MAD Labs</span>
+            </div>
+            <nav>
+                <a
+                    href="https://script.google.com/a/macros/millennia21.id/s/AKfycbyB0UAqw1cBE-IumvNayG0EBpjCm655VlQKEhgCZRpC/dev?view=home"
+                    target="_top"
+                    >Home</a
+                >
+                <a
+                    href="https://script.google.com/a/macros/millennia21.id/s/AKfycbyB0UAqw1cBE-IumvNayG0EBpjCm655VlQKEhgCZRpC/dev?view=form&model=SCHOOL_ACTIVITY"
+                    target="_top"
+                    >School Activity</a
+                >
+                <a
+                    href="https://script.google.com/a/macros/millennia21.id/s/AKfycbyB0UAqw1cBE-IumvNayG0EBpjCm655VlQKEhgCZRpC/dev?view=form&model=ASSET_PROCUREMENT"
+                    target="_top"
+                    >Asset Procurement</a
+                >
+                <a
+                    href="https://script.google.com/a/macros/millennia21.id/s/AKfycbyB0UAqw1cBE-IumvNayG0EBpjCm655VlQKEhgCZRpC/dev?view=latest"
+                    target="_top"
+                    >Latest</a
+                >
+            </nav>
+        </header>
+
+        <main class="container">
+            <? if (view === 'form') { ?> <?!= include('AssessmentForm'); ?> <? }
+            else if (view === 'result') { ?> <?!= include('Result'); ?> <? }
+            else if (view === 'insert') { ?> <?!= include('ProposalInsert'); ?>
+            <? } else if (view === 'latest') { ?> <?!= include('Latest'); ?> <?
+            } else { ?>
+            <section class="hero card">
+                <p class="eyebrow">Internal self-assessment tool</p>
+                <h1>Sustainability Rating Assessment</h1>
+                <p class="lead">
+                    Create a procurement or activity sustainability rating for
+                    internal proposal review. This is not a certification
+                    scheme; evidence can be simple notes, quotation details,
+                    product pages, photos, vendor messages, internal records, or
+                    operation plans.
+                </p>
+                <div class="actions">
+                    <a
+                        class="button primary"
+                        href="https://script.google.com/a/macros/millennia21.id/s/AKfycbyB0UAqw1cBE-IumvNayG0EBpjCm655VlQKEhgCZRpC/dev?view=form&model=SCHOOL_ACTIVITY"
+                        target="_top"
+                        >Start School Activities Proposal</a
+                    >
+                    <a
+                        class="button"
+                        href="https://script.google.com/a/macros/millennia21.id/s/AKfycbyB0UAqw1cBE-IumvNayG0EBpjCm655VlQKEhgCZRpC/dev?view=form&model=ASSET_PROCUREMENT"
+                        target="_top"
+                        >Start Asset Procuring Proposal</a
+                    >
+                </div>
+            </section>
+            <section class="grid two">
+                <div class="card">
+                    <h2>Universal rating bands</h2>
+                    <div class="band-list">
+                        <span class="chip rating-s">S</span> 85–100 Excellent<br />
+                        <span class="chip rating-a">A</span> 70–84 Good<br />
+                        <span class="chip rating-b">B</span> 55–69 Acceptable<br />
+                        <span class="chip rating-c">C</span> 40–54 Weak<br />
+                        <span class="chip rating-d">D</span> 0–39 Poor / Not
+                        Evidenced
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>Proposal document insertion</h2>
+                    <p>
+                        Add the exact placeholder
+                        <code>&lt;&lt;rating&gt;&gt;</code> in the Google Docs
+                        proposal. The app replaces only the first placeholder
+                        with:
+                    </p>
+                    <p>
+                        <strong>A (78.33/100), <u>Assessment Result</u></strong>
+                    </p>
+                    <p>
+                        The “Assessment Result” phrase links to the saved
+                        dynamic result page.
+                    </p>
+                </div>
+            </section>
+            <? } ?>
+        </main>
+
+        <?!= include('Client'); ?>
+    </body>
+</html>
