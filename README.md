@@ -376,6 +376,10 @@ Remove or rename one of the duplicates, then run:
 clasp-kit push-dev
 ```
 
+## Changelog
+
+See [`CHANGELOG.md`](./CHANGELOG.md) for release notes.
+
 ## Development
 
 Install dependencies from the lockfile:
