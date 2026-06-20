@@ -427,13 +427,15 @@ npm version patch
 git push --follow-tags
 ```
 
-Then create and publish a GitHub Release for the new tag. The `Publish to npm` workflow runs tests, verifies the package contents with `npm pack --dry-run`, and publishes with:
+Pushing a version tag such as `v0.1.1` starts the `Release` workflow. It verifies that the tag matches `package.json`, runs tests, verifies package contents with `npm pack --dry-run`, creates a GitHub Release with generated notes, and publishes to npm with:
 
 ```sh
 npm publish --access public --provenance
 ```
 
-You can also start the publish workflow manually from the GitHub Actions tab.
+You can also start the `Release` workflow manually from the GitHub Actions tab by providing an existing tag.
+
+The separate `Publish to npm` workflow is kept as a manual fallback and can also publish when you manually create a GitHub Release.
 
 Before publishing locally, verify the package contents:
 
