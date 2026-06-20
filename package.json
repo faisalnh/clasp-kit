@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "Zero-config project bootstrapper and workflow helper for Google Apps Script projects using clasp.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/faisalnh/clasp-kit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/faisalnh/clasp-kit/issues"
+  },
+  "homepage": "https://github.com/faisalnh/clasp-kit#readme",
   "type": "module",
   "packageManager": "npm@10.8.2",
   "bin": {
