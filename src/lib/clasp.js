@@ -17,6 +17,30 @@ export function requireCommand(command, installHint) {
   }
 }
 
+export function requireClaspVersion(minimumMajor = 3, options = {}) {
+  const capture = options.runClaspCapture || runClaspCapture;
+  let result;
+
+  try {
+    result = capture(['--version'], { capture: true, allowFailure: true });
+  } catch {
+    throw new CliError('clasp was not found. Install it with: npm install -g @google/clasp@^3');
+  }
+
+  const output = String(result.stdout || result.stderr || '').trim();
+  const match = output.match(/(\d+)\.(\d+)\.(\d+)/);
+
+  if (result.status !== 0 || !match) {
+    throw new CliError('Could not determine the installed clasp version.');
+  }
+
+  if (Number(match[1]) < minimumMajor) {
+    throw new CliError(`clasp ${minimumMajor} or newer is required. Installed version: ${match[0]}`);
+  }
+
+  return match[0];
+}
+
 export function runCommand(command, args = [], options = {}) {
   const display = formatCommand(command, args);
 

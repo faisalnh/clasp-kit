@@ -17,7 +17,7 @@ export function devUrlCommand(args, options = {}) {
       throw new CliError('Multiple deployments found. Run clasp-kit dev-url <deployment-id>.');
     }
 
-    throw new CliError('No deployment ID found. Run clasp-kit deploy "Initial web app deployment" first.');
+    throw new CliError('No deployment ID found. Run clasp-kit deploy production first.');
   }
 
   const url = devUrl(resolved.deploymentId);

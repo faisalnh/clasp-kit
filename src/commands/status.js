@@ -53,7 +53,7 @@ export function statusCommand(args, options = {}) {
   } else if (resolved.deploymentCount > 1) {
     warn('Multiple deployments were found. Pass one explicitly when you need a /dev URL.');
   } else {
-    warn('No deployment ID found. Run clasp-kit deploy "Initial web app deployment" first.');
+    warn('No deployment ID found. Run clasp-kit deploy production first.');
   }
 
   if (!ok) {

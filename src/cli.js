@@ -44,7 +44,7 @@ Usage:
   clasp-kit push-dev [deployment-id]
   clasp-kit dev-url [deployment-id] [--plain]
   clasp-kit status
-  clasp-kit deploy [description]
+  clasp-kit deploy [name-or-deployment-id]
   clasp-kit use-deployment <deployment-id>
   clasp-kit release <deployment-id> [description]
   clasp-kit github <repo-name> [--private] [--push] [--init-git]
@@ -55,7 +55,7 @@ Global flags:
   --help                 Show help
   --version              Show version
   --verbose              Print command details
-  --dry-run              Print external commands and skip file writes where supported
+  --dry-run              Preview writes; deploy still queries clasp for existing deployments
   --force                Replace an existing .clasp.json with a different scriptId
   --force-claspignore    Replace an existing .claspignore during init
   --force-hook           Append clasp-kit to an existing pre-push hook
@@ -153,7 +153,7 @@ function parseArgv(argv, executableName = path.basename(process.argv[1] || 'clas
   return { command, args, options };
 }
 
-export function main(argv = process.argv.slice(2), executableName) {
+export async function main(argv = process.argv.slice(2), executableName) {
   const parsed = parseArgv(argv, executableName);
   setVerbose(parsed.options.verbose);
 
@@ -173,7 +173,7 @@ export function main(argv = process.argv.slice(2), executableName) {
     throw new CliError(`Unknown command: ${parsed.command}\n\n${helpText()}`);
   }
 
-  handler(parsed.args, parsed.options);
+  await handler(parsed.args, parsed.options);
   return 0;
 }
 
@@ -188,9 +188,9 @@ function isDirectRun() {
 }
 
 if (isDirectRun()) {
-  try {
-    process.exitCode = main();
-  } catch (err) {
+  main().then((exitCode) => {
+    process.exitCode = exitCode;
+  }).catch((err) => {
     if (err instanceof CliError) {
       error(err.message);
       process.exitCode = err.exitCode;
@@ -198,5 +198,5 @@ if (isDirectRun()) {
       error(err.stack || err.message || String(err));
       process.exitCode = 1;
     }
-  }
+  });
 }

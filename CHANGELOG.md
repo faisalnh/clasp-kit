@@ -4,6 +4,18 @@ All notable changes to `clasp-kit` will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Make `clasp-kit deploy [name-or-deployment-id]` create or update named web app deployments automatically.
+- Prompt for a deployment when several versioned deployments exist, with safe failure in noninteractive environments.
+- Add private web app defaults (`MYSELF`, `USER_DEPLOYING`) when the manifest has no corresponding settings.
+- Use clasp 3 JSON output for strict deployment discovery and result parsing.
+
+### Changed
+
+- Require `@google/clasp` 3 or newer.
+- Preserve existing deployment descriptions and existing valid web app access settings during updates.
+
 ### Fixed
 
 - Include nested Apps Script source files in generated `.claspignore` files while excluding common test, build, coverage, script, and configuration files.

@@ -34,7 +34,7 @@
     "cli"
   ],
   "peerDependencies": {
-    "@google/clasp": ">=2"
+    "@google/clasp": ">=3"
   },
   "peerDependenciesMeta": {
     "@google/clasp": {

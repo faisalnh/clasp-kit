@@ -79,8 +79,8 @@ export function initCommand(args, options = {}) {
   log('Development URL: available after the first web app deployment is created.');
   log('');
   log('Next steps:');
-  log('- clasp-kit deploy "Initial web app deployment"');
+  log('- clasp-kit deploy production');
   log('- clasp-kit push-dev');
   log('- clasp-kit dev-url');
-  log('- clasp-kit release <deployment-id> "Production release"');
+  log('- clasp-kit deploy production (run again for later updates)');
 }

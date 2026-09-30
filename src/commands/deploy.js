@@ -1,59 +1,135 @@
-import { parseDeploymentId, parseVersionNumber, runClasp, runClaspCapture, requireCommand } from '../lib/clasp.js';
+import { requireClaspVersion, runClasp, runClaspCapture } from '../lib/clasp.js';
+import { deploymentCandidates, listVersionedDeployments, looksLikeDeploymentId } from '../lib/deployments.js';
 import { readClaspConfig } from '../lib/files.js';
-import { devUrl } from '../lib/script-id.js';
+import { prepareWebappManifest, writePreparedManifest } from '../lib/manifest.js';
+import { promptForDeployment, promptForDeploymentName } from '../lib/prompt.js';
+import { devUrl, execUrl } from '../lib/script-id.js';
 import { writeDefaultDeploymentId } from '../lib/kit-config.js';
 import { CliError } from '../lib/errors.js';
-import { log, success, warn } from '../lib/logger.js';
+import { log, success } from '../lib/logger.js';
 
-export function deployCommand(args, options = {}) {
-  const description = args.join(' ') || 'Initial deployment';
+const DEFAULT_DEPLOYMENT_NAME = 'Web app';
+
+export function parseDeploymentResult(output) {
+  try {
+    const parsed = JSON.parse(String(output || '').trim());
+    if (!parsed || typeof parsed.deploymentId !== 'string') {
+      throw new Error('deploymentId is missing');
+    }
+    return parsed;
+  } catch (err) {
+    throw new CliError(`Deployment succeeded, but clasp returned unexpected JSON: ${err.message}`);
+  }
+}
+
+export async function chooseDeployment(deployments, target, options) {
+  if (options.deploymentId && !deployments.some((deployment) => deployment.deploymentId === options.deploymentId)) {
+    throw new CliError(`Versioned deployment ID not found: ${options.deploymentId}. The automatic @HEAD deployment cannot be updated.`);
+  }
+
+  const candidates = deploymentCandidates(deployments, target);
+
+  if (target) {
+    if (candidates.length === 1) {
+      return { action: 'update', deployment: candidates[0] };
+    }
+
+    if (candidates.length > 1) {
+      return options.promptForDeployment(candidates, { allowCreate: false });
+    }
+
+    if (options.deploymentId || looksLikeDeploymentId(target)) {
+      throw new CliError(`Versioned deployment ID not found: ${target}. The automatic @HEAD deployment cannot be updated.`);
+    }
+
+    return { action: 'create', name: target };
+  }
+
+  if (deployments.length === 0) {
+    return { action: 'create', name: DEFAULT_DEPLOYMENT_NAME };
+  }
+
+  if (deployments.length === 1) {
+    return { action: 'update', deployment: deployments[0] };
+  }
+
+  return options.promptForDeployment(deployments);
+}
+
+export async function deployCommand(args, options = {}) {
   const projectDir = options.cwd || process.cwd();
-  readClaspConfig(projectDir);
+  const claspConfig = readClaspConfig(projectDir);
+  const positionalTarget = args.join(' ').trim();
+  const target = options.deploymentId || positionalTarget || null;
+  const capture = options.runClaspCapture || runClaspCapture;
+  const run = options.runClasp || runClasp;
+  const promptDeployment = options.promptForDeployment || promptForDeployment;
+  const promptName = options.promptForDeploymentName || promptForDeploymentName;
 
-  requireCommand('clasp', 'Install it with: npm install -g @google/clasp');
+  requireClaspVersion(3, { runClaspCapture: capture });
+
+  const deployments = listVersionedDeployments(projectDir, { runClaspCapture: capture });
+  let selection = await chooseDeployment(deployments, target, {
+    deploymentId: options.deploymentId,
+    promptForDeployment: promptDeployment
+  });
+
+  if (selection.action === 'create' && !selection.name) {
+    selection = { ...selection, name: await promptName(DEFAULT_DEPLOYMENT_NAME) };
+  }
+
+  const preparedManifest = prepareWebappManifest(projectDir, claspConfig);
+  const name = selection.action === 'update'
+    ? selection.deployment.description
+    : selection.name;
+
+  if (preparedManifest.changed) {
+    log(`Adding private web app defaults to ${preparedManifest.path}...`);
+  }
+  writePreparedManifest(preparedManifest, { dryRun: options.dryRun });
+  log(`Web app access: ${preparedManifest.webapp.access}; executes as: ${preparedManifest.webapp.executeAs}`);
 
   log('Pushing latest local code...');
-  runClasp(['push'], { cwd: projectDir, dryRun: options.dryRun });
+  run(['push'], { cwd: projectDir, dryRun: options.dryRun });
 
-  log(`Creating Apps Script version: ${description}`);
-  const versionResult = runClaspCapture(['version', description], {
+  const deploymentArgs = selection.action === 'update'
+    ? ['--json', 'redeploy', selection.deployment.deploymentId, '-d', name]
+    : ['--json', 'deploy', '-d', name];
+
+  const displayName = name || '(no description)';
+  log(selection.action === 'update'
+    ? `Updating deployment "${displayName}"...`
+    : `Creating deployment "${displayName}"...`);
+
+  const result = capture(deploymentArgs, {
     cwd: projectDir,
-    dryRun: options.dryRun
+    dryRun: options.dryRun,
+    allowFailure: true
   });
-  const versionOutput = `${versionResult.stdout || ''}\n${versionResult.stderr || ''}`.trim();
-  const versionNumber = options.dryRun ? '0' : parseVersionNumber(versionOutput);
 
-  if (!versionNumber) {
-    log('');
-    log('Could not parse the version number from clasp output:');
-    log(versionOutput || '(no output)');
-    throw new CliError('Version parsing failed. Create the deployment manually with clasp version and clasp deploy.');
+  if (!options.dryRun && result.status !== 0) {
+    const detail = String(result.stderr || result.stdout || '').trim();
+    throw new CliError(
+      `Deployment failed with exit code ${result.status ?? 'unknown'}.${detail ? ` ${detail}` : ''}`,
+      result.status || 1
+    );
   }
 
-  log(`Creating deployment for version ${versionNumber}...`);
-  const deployResult = runClaspCapture(['deploy', '-V', versionNumber, '-d', description], {
-    cwd: projectDir,
-    dryRun: options.dryRun
-  });
-  const deployOutput = `${deployResult.stdout || ''}\n${deployResult.stderr || ''}`.trim();
-  const deploymentId = options.dryRun ? '<deployment-id>' : parseDeploymentId(deployOutput);
-
-  success('Deployment created.');
-
-  if (deploymentId) {
-    writeDefaultDeploymentId(projectDir, deploymentId, { dryRun: options.dryRun });
-    log(`Deployment ID: ${deploymentId}`);
-    log(`Saved default deployment ID in .clasp-kit.json`);
-  } else {
-    warn('Could not parse the deployment ID from clasp output. Run clasp deployments to list it.');
-    if (deployOutput) {
-      log('');
-      log(deployOutput);
-    }
+  if (options.dryRun) {
+    success(`Dry run complete: deployment would be ${selection.action === 'update' ? 'updated' : 'created'}.`);
+    return;
   }
 
+  const deployment = parseDeploymentResult(result.stdout);
+  writeDefaultDeploymentId(projectDir, deployment.deploymentId);
+
+  success(selection.action === 'update'
+    ? `Deployment updated to version ${deployment.versionNumber}.`
+    : `Deployment created at version ${deployment.versionNumber}.`);
+  log(`Deployment name: ${deployment.description || displayName}`);
+  log(`Deployment ID: ${deployment.deploymentId}`);
+  log('Saved default deployment ID in .clasp-kit.json');
   log('');
-  log(`Development URL: ${deploymentId ? devUrl(deploymentId) : '(run clasp deployments to find the deployment ID)'}`);
-  log('After the first web app deployment exists, the /dev URL can test latest HEAD code.');
-  log('For later production updates, run: clasp-kit release <deployment-id> "description"');
+  log(`Development URL: ${devUrl(deployment.deploymentId)}`);
+  log(`Production URL: ${execUrl(deployment.deploymentId)}`);
 }

@@ -29,7 +29,7 @@ export function pushDevCommand(args, options = {}) {
     log('');
   } else {
     warn('No Apps Script deployments were found. The /dev URL may not work until you create the first deployment.');
-    log('Create it with: clasp-kit deploy "Initial web app deployment"');
+    log('Create it with: clasp-kit deploy production');
     log('');
   }
 

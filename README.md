@@ -19,7 +19,7 @@ Google Apps Script local development works well with clasp, but the first setup 
 
 - Node.js 18 or newer
 - npm
-- Google clasp installed and available on your `PATH`
+- Google clasp 3 or newer installed and available on your `PATH`
 - Logged in with clasp
 - Apps Script API enabled for your Google account if clasp requires it
 
@@ -47,7 +47,7 @@ npx clasp-kit init <script-url-or-id>
 ```sh
 clasp-kit init <script-url-or-id>
 clasp-kit status
-clasp-kit deploy "Initial web app deployment"
+clasp-kit deploy production
 clasp-kit use-deployment <deployment-id>
 clasp-kit push-dev
 clasp-kit dev-url
@@ -135,37 +135,50 @@ The web app URL uses a deployment ID, not the Apps Script script ID.
 
 The `/dev` URL uses latest HEAD code. Production `/exec` deployments generally require a versioned redeploy.
 
-Important: if the Apps Script project has no web app deployment yet, the `/dev` URL may not work. Create the first deployment once:
+Important: if the Apps Script project has no web app deployment yet, the `/dev` URL may not work. Create a named deployment:
 
 ```sh
-clasp-kit deploy "Initial web app deployment"
+clasp-kit deploy production
 ```
 
-After that first deployment exists, `clasp-kit push-dev` is enough for testing latest HEAD code through `/dev`.
+After that deployment exists, `clasp-kit push-dev` is enough for testing latest HEAD code through `/dev`.
 
-### `clasp-kit deploy [description]`
+### `clasp-kit deploy [name-or-deployment-id]`
 
-Creates the first Apps Script deployment for a project.
+Creates or updates a versioned Apps Script deployment.
 
-Use this when the Apps Script deployment page says there are no deployments yet, or when the `/dev` URL does not work because no web app deployment exists.
+Behavior:
 
-It runs:
+- With no versioned deployments, creates a deployment named `Web app`.
+- With one versioned deployment, updates it while preserving its name and URL.
+- With several versioned deployments, asks which one to update or whether to create another.
+- With a name such as `production`, updates the deployment with that description or creates it when no match exists.
+- With a deployment ID, updates that exact deployment. A missing ID is an error.
+- Duplicate matching names require an interactive selection. Noninteractive runs fail with the available deployment IDs.
+
+Before pushing, the command ensures that `appsscript.json` has a web app configuration. Missing values default to:
+
+```json
+{
+  "webapp": {
+    "access": "MYSELF",
+    "executeAs": "USER_DEPLOYING"
+  }
+}
+```
+
+Existing valid access settings are preserved. The manifest is resolved relative to `.clasp.json`'s `rootDir`.
+
+The command lists deployments with clasp's JSON output, excludes the automatic `@HEAD` deployment, pushes local code, and runs either:
 
 ```sh
-clasp push
-clasp version "<description>"
-clasp deploy -V <version-number> -d "<description>"
+clasp --json deploy -d "<name>"
+clasp --json redeploy <deployment-id> -d "<existing-name>"
 ```
 
-Then it prints the deployment ID and `/dev` URL.
+clasp creates the immutable version during that operation. `clasp-kit` then prints the deployment ID, `/dev` URL, and `/exec` URL, and saves the ID in `.clasp-kit.json`.
 
-`clasp-kit` saves the deployment ID in `.clasp-kit.json` so later `push-dev` and `dev-url` commands can print the correct URL.
-
-This is usually a one-time bootstrap step. For later production updates, use:
-
-```sh
-clasp-kit release <deployment-id> "Production release"
-```
+`clasp-kit deploy --dry-run` does not push code, write the manifest, create a version, or change a deployment. It still queries the real deployment list to determine whether the command would create or update, so clasp authentication and network access are required.
 
 ### `clasp-kit use-deployment <deployment-id>`
 
@@ -285,10 +298,10 @@ Apps Script web apps commonly have two important URLs:
 Use this flow:
 
 ```sh
-clasp-kit deploy "Initial web app deployment"
+clasp-kit deploy production
 clasp-kit push-dev
 clasp-kit dev-url
-clasp-kit release <deployment-id> "Production release"
+clasp-kit deploy production
 ```
 
 ## Safety Notes
