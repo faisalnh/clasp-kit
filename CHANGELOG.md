@@ -15,6 +15,7 @@ All notable changes to `clasp-kit` will be documented in this file.
 
 - Require `@google/clasp` 3 or newer.
 - Preserve existing deployment descriptions and existing valid web app access settings during updates.
+- Push the validated manifest with `clasp push --force` during deployment so first deployments and retries work noninteractively.
 
 ### Fixed
 

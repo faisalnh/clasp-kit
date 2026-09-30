@@ -169,7 +169,9 @@ Before pushing, the command ensures that `appsscript.json` has a web app configu
 
 Existing valid access settings are preserved. The manifest is resolved relative to `.clasp.json`'s `rootDir`.
 
-The command lists deployments with clasp's JSON output, excludes the automatic `@HEAD` deployment, pushes local code, and runs either:
+The command lists deployments with clasp's JSON output, excludes the automatic `@HEAD` deployment, validates the local manifest, and pushes with `clasp push --force`. The force flag prevents clasp's manifest-overwrite confirmation from silently skipping the push in noninteractive environments. It is safe here because deployment is an explicit operation and the manifest has already passed clasp-kit's validation.
+
+It then runs either:
 
 ```sh
 clasp --json deploy -d "<name>"

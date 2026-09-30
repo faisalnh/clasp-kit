@@ -89,8 +89,8 @@ export async function deployCommand(args, options = {}) {
   writePreparedManifest(preparedManifest, { dryRun: options.dryRun });
   log(`Web app access: ${preparedManifest.webapp.access}; executes as: ${preparedManifest.webapp.executeAs}`);
 
-  log('Pushing latest local code...');
-  run(['push'], { cwd: projectDir, dryRun: options.dryRun });
+  log('Pushing latest local code and validated manifest...');
+  run(['push', '--force'], { cwd: projectDir, dryRun: options.dryRun });
 
   const deploymentArgs = selection.action === 'update'
     ? ['--json', 'redeploy', selection.deployment.deploymentId, '-d', name]

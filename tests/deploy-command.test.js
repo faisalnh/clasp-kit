@@ -107,7 +107,7 @@ test('deploy command discovers before mutation and preserves the selected descri
   assert.deepEqual(calls, [
     ['--version'],
     ['--json', 'deployments'],
-    ['push'],
+    ['push', '--force'],
     ['--json', 'redeploy', PRODUCTION.deploymentId, '-d', 'Production']
   ]);
 });
