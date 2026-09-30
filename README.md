@@ -99,11 +99,13 @@ It will:
 - Create `.git/hooks/pre-push` to run `clasp-kit push-dev`.
 - Print the `/dev` test URL and next steps.
 
+The generated hook is non-blocking. If `clasp-kit` is unavailable or `push-dev` fails, it prints a warning and allows `git push` to continue.
+
 Safe behavior:
 
 - Existing `.clasp.json` is not replaced if it points to a different script ID unless `--force` is provided.
-- Existing `.claspignore` is not overwritten unless `--force-claspignore` is provided.
-- Existing pre-push hooks are not overwritten. If a hook exists and does not include `clasp-kit push-dev`, it is skipped unless `--force-hook` is provided.
+- Existing `.claspignore` is not overwritten unless `--force-claspignore` is provided. Existing projects should re-run init with this flag to adopt updated safe defaults for nested source files.
+- Existing clasp-kit-managed pre-push blocks are upgraded in place. Other pre-push hooks are not overwritten; they are skipped unless `--force-hook` is provided.
 
 Useful flags:
 

@@ -5,9 +5,15 @@ import { warn } from './logger.js';
 import { CliError } from './errors.js';
 
 const HOOK_COMMAND = 'clasp-kit push-dev';
-const HOOK_BLOCK = `# clasp-kit pre-push start
-${HOOK_COMMAND}
-# clasp-kit pre-push end
+const HOOK_START = '# clasp-kit pre-push start';
+const HOOK_END = '# clasp-kit pre-push end';
+const HOOK_BLOCK = `${HOOK_START}
+if command -v clasp-kit >/dev/null 2>&1; then
+  clasp-kit push-dev || echo "Warning: clasp-kit push-dev failed; continuing git push." >&2
+else
+  echo "Warning: clasp-kit is not installed; skipping Apps Script push." >&2
+fi
+${HOOK_END}
 `;
 
 export function ensureGitRepository(projectDir, options = {}) {
@@ -33,7 +39,30 @@ export function ensurePrePushHook(projectDir, options = {}) {
   if (fs.existsSync(hookPath)) {
     const current = fs.readFileSync(hookPath, 'utf8');
 
+    const blockStart = current.indexOf(HOOK_START);
+    const blockEnd = current.indexOf(HOOK_END, blockStart);
+
+    if (blockStart !== -1 && blockEnd !== -1) {
+      const afterBlock = blockEnd + HOOK_END.length;
+      const existingBlock = current.slice(blockStart, afterBlock);
+      const expectedBlock = HOOK_BLOCK.trimEnd();
+
+      if (existingBlock === expectedBlock) {
+        return { action: 'unchanged', path: hookPath };
+      }
+
+      const next = `${current.slice(0, blockStart)}${expectedBlock}${current.slice(afterBlock)}`;
+
+      if (!options.dryRun) {
+        fs.writeFileSync(hookPath, next, 'utf8');
+        fs.chmodSync(hookPath, 0o755);
+      }
+
+      return { action: 'updated', path: hookPath };
+    }
+
     if (current.includes(HOOK_COMMAND)) {
+      warn('Existing .git/hooks/pre-push runs clasp-kit push-dev outside a clasp-kit-managed block. Leaving it unchanged.');
       return { action: 'unchanged', path: hookPath };
     }
 

@@ -2,6 +2,12 @@ import { outputHasDeployments, parseDeploymentIds, runClaspCapture } from './cla
 import { readDefaultDeploymentId } from './kit-config.js';
 import { warn } from './logger.js';
 
+export function preferredDeploymentIds(output) {
+  const allIds = parseDeploymentIds(output);
+  const versionedIds = parseDeploymentIds(output, { excludeHead: true });
+  return versionedIds.length > 0 ? versionedIds : allIds;
+}
+
 export function resolveDeploymentId(projectDir, options = {}) {
   if (options.deploymentId) {
     return {
@@ -37,7 +43,7 @@ export function resolveDeploymentId(projectDir, options = {}) {
     return { deploymentId: null, source: 'clasp deployments', deploymentCount: 0 };
   }
 
-  const ids = parseDeploymentIds(output);
+  const ids = preferredDeploymentIds(output);
 
   return {
     deploymentId: ids.length === 1 ? ids[0] : null,

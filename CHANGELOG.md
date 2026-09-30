@@ -2,6 +2,20 @@
 
 All notable changes to `clasp-kit` will be documented in this file.
 
+## Unreleased
+
+### Fixed
+
+- Include nested Apps Script source files in generated `.claspignore` files while excluding common test, build, coverage, script, and configuration files.
+- Prefer versioned deployments over the automatic `@HEAD` deployment, while retaining `@HEAD` when it is the only available deployment.
+- Make generated pre-push hooks non-blocking and upgrade older clasp-kit-managed hook blocks in place.
+- Reject unrelated numbers when parsing clasp version output.
+- Report malformed `.clasp-kit.json` files as concise CLI errors.
+
+### Migration
+
+- Existing `.claspignore` files are not changed automatically. Run `clasp-kit init <script-url-or-id> --force-claspignore` to adopt the updated defaults.
+
 ## v0.1.0 - 2026-06-20
 
 Initial public release of `clasp-kit`.

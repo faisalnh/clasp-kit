@@ -60,8 +60,7 @@ export function parseVersionNumber(output) {
   const patterns = [
     /Created version\s+(\d+)/i,
     /Version\s+(\d+)\s+created/i,
-    /\bversion\s+(\d+)\b/i,
-    /\b(\d+)\b/
+    /\bversion\s+(\d+)\b/i
   ];
 
   for (const pattern of patterns) {
@@ -78,7 +77,7 @@ export function parseDeploymentId(output) {
   return parseDeploymentIds(output)[0] || null;
 }
 
-export function parseDeploymentIds(output) {
+export function parseDeploymentIds(output, options = {}) {
   const ids = new Set();
   const value = String(output || '');
   const patterns = [
@@ -92,6 +91,20 @@ export function parseDeploymentIds(output) {
   for (const pattern of patterns) {
     for (const match of value.matchAll(pattern)) {
       ids.add(match[1]);
+    }
+  }
+
+  if (options.excludeHead) {
+    for (const line of value.split(/\r?\n/)) {
+      if (!/@HEAD\b/i.test(line)) {
+        continue;
+      }
+
+      for (const id of ids) {
+        if (line.includes(id)) {
+          ids.delete(id);
+        }
+      }
     }
   }
 
@@ -109,5 +122,5 @@ export function outputHasDeployments(output) {
     return false;
   }
 
-  return parseDeploymentIds(value).length > 0 || /deployment/i.test(value) || /@[0-9]+/.test(value);
+  return parseDeploymentIds(value).length > 0 || /@[0-9]+/.test(value);
 }

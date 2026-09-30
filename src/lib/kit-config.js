@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { readJsonFile } from './files.js';
 
 export const KIT_CONFIG_FILE = '.clasp-kit.json';
 
@@ -10,7 +11,7 @@ export function readKitConfig(projectDir = process.cwd()) {
     return {};
   }
 
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  return readJsonFile(filePath);
 }
 
 export function readDefaultDeploymentId(projectDir = process.cwd()) {

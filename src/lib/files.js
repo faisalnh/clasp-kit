@@ -13,13 +13,20 @@ export const GITIGNORE_LINES = [
 
 export const CLASPIGNORE_CONTENT = `**/**
 !appsscript.json
-!*.js
-!*.gs
-!*.html
-!*.json
+!**/*.js
+!**/*.gs
+!**/*.html
 .git/**
 .github/**
 node_modules/**
+test/**
+tests/**
+scripts/**
+dist/**
+coverage/**
+*.config.js
+*.config.mjs
+*.config.cjs
 .clasp.json
 .clasp-kit.json
 .clasprc.json

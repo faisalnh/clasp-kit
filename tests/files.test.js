@@ -91,6 +91,14 @@ test('creates .claspignore with safe defaults', () => {
 
   assert.equal(result.action, 'created');
   assert.equal(content, CLASPIGNORE_CONTENT);
+  assert.match(content, /^!\*\*\/\*\.js$/m);
+  assert.match(content, /^!\*\*\/\*\.gs$/m);
+  assert.match(content, /^!\*\*\/\*\.html$/m);
+  assert.doesNotMatch(content, /^!\*\.json$/m);
+
+  for (const ignored of ['test/**', 'tests/**', 'scripts/**', 'dist/**', 'coverage/**', '*.config.js']) {
+    assert.ok(content.includes(ignored), `expected .claspignore to include ${ignored}`);
+  }
 });
 
 test('does not overwrite existing .claspignore unless forced', () => {
