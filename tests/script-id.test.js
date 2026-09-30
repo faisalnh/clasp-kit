@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { outputHasDeployments, parseDeploymentId, parseDeploymentIds, parseVersionNumber } from '../src/lib/clasp.js';
+import { parseVersionNumber } from '../src/lib/clasp.js';
 import { extractScriptId, devUrl } from '../src/lib/script-id.js';
 
 const SCRIPT_ID = '1ZwDA5ETC8DJwUnnZm3OOI-0MyTMVVF4_SIQQ-oRxjB59K2K8_Stlzs_k';
@@ -39,30 +39,4 @@ test('parses version numbers from clasp output', () => {
   assert.equal(parseVersionNumber('Created version 12'), '12');
   assert.equal(parseVersionNumber('Version 13 created.'), '13');
   assert.equal(parseVersionNumber('Request failed with status 403'), null);
-});
-
-test('parses deployment IDs from clasp output', () => {
-  assert.equal(
-    parseDeploymentId('Created deployment AKfycbx1234567890_abcdefghijklmnopqrstuvwxyz'),
-    'AKfycbx1234567890_abcdefghijklmnopqrstuvwxyz'
-  );
-  assert.equal(
-    parseDeploymentId('Deployment ID: AKfycbx1234567890-abcdefghijklmnopqrstuvwxyz'),
-    'AKfycbx1234567890-abcdefghijklmnopqrstuvwxyz'
-  );
-});
-
-test('can exclude the automatic HEAD deployment', () => {
-  const headId = 'AKfycbxHEAD1234567890_abcdefghijklmnopqrstuvwxyz';
-  const versionedId = 'AKfycbxPROD1234567890_abcdefghijklmnopqrstuvwxyz';
-  const output = `Found 2 deployments.\n- ${headId} @HEAD\n- ${versionedId} @12 - Production`;
-
-  assert.deepEqual(parseDeploymentIds(output, { excludeHead: true }), [versionedId]);
-});
-
-test('detects whether clasp deployments output contains deployments', () => {
-  assert.equal(outputHasDeployments('No deployments.'), false);
-  assert.equal(outputHasDeployments(''), false);
-  assert.equal(outputHasDeployments('Fetching deployments...'), false);
-  assert.equal(outputHasDeployments('- AKfycbx1234567890_abcdefghijklmnopqrstuvwxyz @12'), true);
 });

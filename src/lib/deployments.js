@@ -1,13 +1,6 @@
-import { outputHasDeployments, parseDeploymentIds, runClaspCapture } from './clasp.js';
-import { readDefaultDeploymentId } from './kit-config.js';
+import { runClaspCapture } from './clasp.js';
 import { CliError } from './errors.js';
-import { warn } from './logger.js';
 
-export function preferredDeploymentIds(output) {
-  const allIds = parseDeploymentIds(output);
-  const versionedIds = parseDeploymentIds(output, { excludeHead: true });
-  return versionedIds.length > 0 ? versionedIds : allIds;
-}
 
 export function parseDeploymentsJson(output) {
   let parsed;
@@ -35,7 +28,7 @@ export function parseDeploymentsJson(output) {
   });
 }
 
-export function listVersionedDeployments(projectDir, options = {}) {
+export function listDeployments(projectDir, options = {}) {
   const capture = options.runClaspCapture || runClaspCapture;
   const result = capture(['--json', 'deployments'], {
     cwd: projectDir,
@@ -47,7 +40,33 @@ export function listVersionedDeployments(projectDir, options = {}) {
     throw new CliError(`Could not list Apps Script deployments.${detail ? ` ${detail}` : ''}`);
   }
 
-  return parseDeploymentsJson(result.stdout).filter((deployment) => deployment.versionNumber !== null);
+  return parseDeploymentsJson(result.stdout);
+}
+
+export function versionedDeployments(deployments) {
+  return deployments.filter((deployment) => deployment.versionNumber !== null);
+}
+
+export function headDeployment(deployments) {
+  return deployments.find((deployment) => deployment.versionNumber === null) || null;
+}
+
+
+export function resolveHeadDeployment(projectDir, options = {}) {
+  const deployment = headDeployment(listDeployments(projectDir, options));
+
+  if (!deployment) {
+    throw new CliError('The automatic @HEAD deployment was not found. Run clasp deployments and verify the project has a HEAD deployment.');
+  }
+
+  if (options.deploymentId && options.deploymentId !== deployment.deploymentId) {
+    throw new CliError(`Development URLs require the automatic @HEAD deployment ID (${deployment.deploymentId}), not ${options.deploymentId}.`);
+  }
+
+  return {
+    deploymentId: deployment.deploymentId,
+    source: 'automatic @HEAD deployment'
+  };
 }
 
 export function looksLikeDeploymentId(value) {
@@ -66,49 +85,4 @@ export function deploymentCandidates(deployments, target) {
 
   const normalized = target.trim().toLocaleLowerCase();
   return deployments.filter((deployment) => deployment.description.trim().toLocaleLowerCase() === normalized);
-}
-
-export function resolveDeploymentId(projectDir, options = {}) {
-  if (options.deploymentId) {
-    return {
-      deploymentId: options.deploymentId,
-      source: 'argument',
-      deploymentCount: 1
-    };
-  }
-
-  const configured = readDefaultDeploymentId(projectDir);
-  if (configured) {
-    return {
-      deploymentId: configured,
-      source: '.clasp-kit.json',
-      deploymentCount: 1
-    };
-  }
-
-  const deployments = runClaspCapture(['deployments'], {
-    cwd: projectDir,
-    dryRun: options.dryRun,
-    allowFailure: true
-  });
-
-  if (deployments.status !== 0) {
-    warn('Could not read deployments with clasp deployments.');
-    return { deploymentId: null, source: null, deploymentCount: 0 };
-  }
-
-  const output = `${deployments.stdout || ''}\n${deployments.stderr || ''}`.trim();
-
-  if (!outputHasDeployments(output)) {
-    return { deploymentId: null, source: 'clasp deployments', deploymentCount: 0 };
-  }
-
-  const ids = preferredDeploymentIds(output);
-
-  return {
-    deploymentId: ids.length === 1 ? ids[0] : null,
-    source: 'clasp deployments',
-    deploymentCount: ids.length,
-    deploymentIds: ids
-  };
 }

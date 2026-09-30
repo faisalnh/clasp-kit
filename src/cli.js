@@ -41,8 +41,8 @@ Zero-config project bootstrapper and workflow helper for Google Apps Script proj
 
 Usage:
   clasp-kit init <script-url-or-id> [--force] [--force-claspignore] [--no-git] [--no-hook] [--force-hook]
-  clasp-kit push-dev [deployment-id]
-  clasp-kit dev-url [deployment-id] [--plain]
+  clasp-kit push-dev [head-deployment-id]
+  clasp-kit dev-url [head-deployment-id] [--plain]
   clasp-kit status
   clasp-kit deploy [name-or-deployment-id]
   clasp-kit use-deployment <deployment-id>
@@ -68,7 +68,7 @@ Global flags:
   --push                 Push the current branch after configuring the remote
   --name <remote-name>   Remote name for clasp-kit remote, default: origin
   --remote <name>        Remote name for clasp-kit github, default: origin
-  --deployment-id <id>   Deployment ID for /dev and /exec URL generation
+  --deployment-id <id>   Explicit deployment ID; /dev commands accept only the @HEAD ID
 `;
 }
 

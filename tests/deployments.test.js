@@ -2,54 +2,71 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   deploymentCandidates,
-  listVersionedDeployments,
+  headDeployment,
+  listDeployments,
   looksLikeDeploymentId,
   parseDeploymentsJson,
-  preferredDeploymentIds
+  resolveHeadDeployment,
+  versionedDeployments
 } from '../src/lib/deployments.js';
 
 const HEAD_ID = 'AKfycbxHEAD1234567890_abcdefghijklmnopqrstuvwxyz';
 const VERSIONED_ID = 'AKfycbxPROD1234567890_abcdefghijklmnopqrstuvwxyz';
 
+const HEAD = { deploymentId: HEAD_ID, versionNumber: null, description: 'Head' };
 const DEPLOYMENTS = [
   { deploymentId: VERSIONED_ID, versionNumber: 12, description: 'Production' },
   { deploymentId: 'AKfycbxSTAGE1234567890_abcdefghijklmnopqrstuvwxyz', versionNumber: 9, description: 'Staging' }
 ];
 
-test('prefers versioned deployments when HEAD is also present', () => {
-  const output = `Found 2 deployments.\n- ${HEAD_ID} @HEAD\n- ${VERSIONED_ID} @12 - Production`;
-  assert.deepEqual(preferredDeploymentIds(output), [VERSIONED_ID]);
-});
-
-test('keeps HEAD when it is the only deployment for legacy URL resolution', () => {
-  const output = `Found 1 deployment.\n- ${HEAD_ID} @HEAD`;
-  assert.deepEqual(preferredDeploymentIds(output), [HEAD_ID]);
-});
 
 test('parses clasp deployment JSON', () => {
   assert.deepEqual(parseDeploymentsJson(JSON.stringify(DEPLOYMENTS)), DEPLOYMENTS);
   assert.throws(() => parseDeploymentsJson('not json'), /Could not parse deployment data/);
 });
 
-test('strict listing excludes the automatic HEAD deployment', () => {
-  const result = listVersionedDeployments('/project', {
+test('separates automatic HEAD from versioned deployments', () => {
+  const all = [HEAD, ...DEPLOYMENTS];
+  assert.equal(headDeployment(all), HEAD);
+  assert.deepEqual(versionedDeployments(all), DEPLOYMENTS);
+});
+
+test('resolves only the automatic HEAD deployment for development URLs', () => {
+  const runClaspCapture = () => ({
+    status: 0,
+    stdout: JSON.stringify([HEAD, ...DEPLOYMENTS]),
+    stderr: ''
+  });
+
+  assert.deepEqual(resolveHeadDeployment('/project', { runClaspCapture }), {
+    deploymentId: HEAD_ID,
+    source: 'automatic @HEAD deployment'
+  });
+  assert.throws(() => resolveHeadDeployment('/project', {
+    deploymentId: VERSIONED_ID,
+    runClaspCapture
+  }), /require the automatic @HEAD deployment ID/);
+});
+
+test('strict listing returns HEAD and versioned deployments', () => {
+  const result = listDeployments('/project', {
     runClaspCapture(args) {
       assert.deepEqual(args, ['--json', 'deployments']);
       return {
         status: 0,
         stdout: JSON.stringify([
-          { deploymentId: HEAD_ID, description: 'Head' },
+          HEAD,
           ...DEPLOYMENTS
         ]),
         stderr: ''
       };
     }
   });
-  assert.deepEqual(result, DEPLOYMENTS);
+  assert.deepEqual(result, [HEAD, ...DEPLOYMENTS]);
 });
 
 test('strict listing fails instead of treating lookup errors as empty results', () => {
-  assert.throws(() => listVersionedDeployments('/project', {
+  assert.throws(() => listDeployments('/project', {
     runClaspCapture() {
       return { status: 1, stdout: '', stderr: 'Not logged in' };
     }

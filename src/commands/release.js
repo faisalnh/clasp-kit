@@ -1,6 +1,6 @@
 import { runClasp, runClaspCapture, parseVersionNumber, requireCommand } from '../lib/clasp.js';
 import { readClaspConfig } from '../lib/files.js';
-import { devUrl, execUrl } from '../lib/script-id.js';
+import { execUrl } from '../lib/script-id.js';
 import { CliError } from '../lib/errors.js';
 import { log, success } from '../lib/logger.js';
 
@@ -45,7 +45,7 @@ export function releaseCommand(args, options = {}) {
   });
 
   success(`Production deployment ${deploymentId} updated to version ${versionNumber}.`);
-  log(`Development URL: ${devUrl(deploymentId)}`);
   log(`Production URL: ${execUrl(deploymentId)}`);
+  log('Use clasp-kit dev-url for the automatic @HEAD development URL.');
   log('The production /exec deployment now points to the new version.');
 }

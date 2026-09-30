@@ -1,5 +1,11 @@
 import { requireClaspVersion, runClasp, runClaspCapture } from '../lib/clasp.js';
-import { deploymentCandidates, listVersionedDeployments, looksLikeDeploymentId } from '../lib/deployments.js';
+import {
+  deploymentCandidates,
+  headDeployment,
+  listDeployments,
+  looksLikeDeploymentId,
+  versionedDeployments
+} from '../lib/deployments.js';
 import { readClaspConfig } from '../lib/files.js';
 import { prepareWebappManifest, writePreparedManifest } from '../lib/manifest.js';
 import { promptForDeployment, promptForDeploymentName } from '../lib/prompt.js';
@@ -68,7 +74,9 @@ export async function deployCommand(args, options = {}) {
 
   requireClaspVersion(3, { runClaspCapture: capture });
 
-  const deployments = listVersionedDeployments(projectDir, { runClaspCapture: capture });
+  const allDeployments = listDeployments(projectDir, { runClaspCapture: capture });
+  const deployments = versionedDeployments(allDeployments);
+  const head = headDeployment(allDeployments);
   let selection = await chooseDeployment(deployments, target, {
     deploymentId: options.deploymentId,
     promptForDeployment: promptDeployment
@@ -130,6 +138,10 @@ export async function deployCommand(args, options = {}) {
   log(`Deployment ID: ${deployment.deploymentId}`);
   log('Saved default deployment ID in .clasp-kit.json');
   log('');
-  log(`Development URL: ${devUrl(deployment.deploymentId)}`);
+  if (head) {
+    log(`Development URL: ${devUrl(head.deploymentId)}`);
+  } else {
+    log('Development URL: unavailable because the automatic @HEAD deployment was not found.');
+  }
   log(`Production URL: ${execUrl(deployment.deploymentId)}`);
 }

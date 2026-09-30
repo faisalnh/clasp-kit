@@ -24,10 +24,12 @@ All notable changes to `clasp-kit` will be documented in this file.
 - Make generated pre-push hooks non-blocking and upgrade older clasp-kit-managed hook blocks in place.
 - Reject unrelated numbers when parsing clasp version output.
 - Report malformed `.clasp-kit.json` files as concise CLI errors.
+- Resolve `/dev` URLs from the automatic `@HEAD` deployment instead of reusing versioned production deployment IDs.
 
 ### Migration
 
 - Existing `.claspignore` files are not changed automatically. Run `clasp-kit init <script-url-or-id> --force-claspignore` to adopt the updated defaults.
+- `dev-url` and `push-dev` now derive `/dev` URLs from the automatic `@HEAD` deployment only. Passing a versioned deployment ID is rejected, and `.clasp-kit.json` is no longer used for `/dev` URLs.
 
 ## v0.1.0 - 2026-06-20
 

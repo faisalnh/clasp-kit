@@ -6,6 +6,11 @@ import path from 'node:path';
 import { chooseDeployment, deployCommand, parseDeploymentResult } from '../src/commands/deploy.js';
 import { requireClaspVersion } from '../src/lib/clasp.js';
 
+const HEAD = {
+  deploymentId: 'AKfycbxHEAD1234567890_abcdefghijklmnopqrstuvwxyz',
+  versionNumber: null,
+  description: 'Head'
+};
 const PRODUCTION = {
   deploymentId: 'AKfycbxPROD1234567890_abcdefghijklmnopqrstuvwxyz',
   versionNumber: 12,
@@ -81,28 +86,36 @@ test('deploy command discovers before mutation and preserves the selected descri
   const dir = tempDeployProject();
   const calls = [];
 
-  await deployCommand([], {
-    cwd: dir,
-    runClasp(args) {
-      calls.push(args);
-      return { status: 0, stdout: '', stderr: '' };
-    },
-    runClaspCapture(args, captureOptions) {
-      calls.push(args);
-      if (args[0] === '--version') {
-        return { status: 0, stdout: '3.1.3', stderr: '' };
+  const logs = [];
+  const originalLog = console.log;
+  console.log = (value = '') => logs.push(String(value));
+
+  try {
+    await deployCommand([], {
+      cwd: dir,
+      runClasp(args) {
+        calls.push(args);
+        return { status: 0, stdout: '', stderr: '' };
+      },
+      runClaspCapture(args, captureOptions) {
+        calls.push(args);
+        if (args[0] === '--version') {
+          return { status: 0, stdout: '3.1.3', stderr: '' };
+        }
+        if (args[0] === '--json' && args[1] === 'deployments') {
+          return { status: 0, stdout: JSON.stringify([HEAD, PRODUCTION]), stderr: '' };
+        }
+        assert.equal(captureOptions.allowFailure, true);
+        return {
+          status: 0,
+          stdout: JSON.stringify({ ...PRODUCTION, versionNumber: 13 }),
+          stderr: ''
+        };
       }
-      if (args[0] === '--json' && args[1] === 'deployments') {
-        return { status: 0, stdout: JSON.stringify([PRODUCTION]), stderr: '' };
-      }
-      assert.equal(captureOptions.allowFailure, true);
-      return {
-        status: 0,
-        stdout: JSON.stringify({ ...PRODUCTION, versionNumber: 13 }),
-        stderr: ''
-      };
-    }
-  });
+    });
+  } finally {
+    console.log = originalLog;
+  }
 
   assert.deepEqual(calls, [
     ['--version'],
@@ -110,6 +123,9 @@ test('deploy command discovers before mutation and preserves the selected descri
     ['push', '--force'],
     ['--json', 'redeploy', PRODUCTION.deploymentId, '-d', 'Production']
   ]);
+  assert.ok(logs.some((line) => line.includes(`/s/${HEAD.deploymentId}/dev`)));
+  assert.ok(logs.some((line) => line.includes(`/s/${PRODUCTION.deploymentId}/exec`)));
+  assert.ok(!logs.some((line) => line.includes(`/s/${PRODUCTION.deploymentId}/dev`)));
 });
 
 test('deploy command includes clasp error detail and exit code', async () => {

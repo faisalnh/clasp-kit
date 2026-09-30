@@ -3,12 +3,13 @@ import { readClaspConfig } from '../lib/files.js';
 import { devUrl } from '../lib/script-id.js';
 import { log, warn } from '../lib/logger.js';
 import { CliError } from '../lib/errors.js';
-import { resolveDeploymentId } from '../lib/deployments.js';
+import { resolveHeadDeployment } from '../lib/deployments.js';
 
 function runStatusStep(args, message, options) {
   log('');
   log(message);
-  const result = runClasp(args, {
+  const run = options.runClasp || runClasp;
+  const result = run(args, {
     cwd: options.cwd,
     dryRun: options.dryRun,
     allowFailure: true
@@ -26,7 +27,8 @@ export function statusCommand(args, options = {}) {
   const projectDir = options.cwd || process.cwd();
   readClaspConfig(projectDir);
 
-  requireCommand('clasp', 'Install it with: npm install -g @google/clasp');
+  const requireExecutable = options.requireCommand || requireCommand;
+  requireExecutable('clasp', 'Install it with: npm install -g @google/clasp');
 
   let ok = true;
   const authOk = runStatusStep(['show-authorized-user'], 'Authorized user:', {
@@ -43,17 +45,17 @@ export function statusCommand(args, options = {}) {
   ok = runStatusStep(['deployments'], 'Deployments:', { ...options, cwd: projectDir }) && ok;
 
   log('');
-  const resolved = resolveDeploymentId(projectDir, {
-    deploymentId: args[0] || options.deploymentId,
-    dryRun: options.dryRun
-  });
-
-  if (resolved.deploymentId) {
+  try {
+    const resolved = resolveHeadDeployment(projectDir, {
+      deploymentId: args[0] || options.deploymentId,
+      runClaspCapture: options.runClaspCapture
+    });
     log(`Development URL: ${devUrl(resolved.deploymentId)}`);
-  } else if (resolved.deploymentCount > 1) {
-    warn('Multiple deployments were found. Pass one explicitly when you need a /dev URL.');
-  } else {
-    warn('No deployment ID found. Run clasp-kit deploy production first.');
+  } catch (err) {
+    if (!(err instanceof CliError)) {
+      throw err;
+    }
+    warn(err.message);
   }
 
   if (!ok) {

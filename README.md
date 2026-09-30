@@ -125,15 +125,15 @@ Runs:
 clasp push
 ```
 
-Then prints the `/dev` test URL:
+Then discovers the automatic `@HEAD` deployment and prints its `/dev` test URL:
 
 ```txt
-https://script.google.com/macros/s/<deployment-id>/dev
+https://script.google.com/macros/s/<head-deployment-id>/dev
 ```
 
-The web app URL uses a deployment ID, not the Apps Script script ID.
+The development URL must use the automatic HEAD deployment ID. Appending `/dev` to a versioned production deployment ID can continue serving that deployed version instead of the latest pushed source.
 
-The `/dev` URL uses latest HEAD code. Production `/exec` deployments generally require a versioned redeploy.
+The `/dev` URL uses latest HEAD code. Production `/exec` URLs use separate versioned deployment IDs.
 
 Important: if the Apps Script project has no web app deployment yet, the `/dev` URL may not work. Create a named deployment:
 
@@ -178,7 +178,7 @@ clasp --json deploy -d "<name>"
 clasp --json redeploy <deployment-id> -d "<existing-name>"
 ```
 
-clasp creates the immutable version during that operation. `clasp-kit` then prints the deployment ID, `/dev` URL, and `/exec` URL, and saves the ID in `.clasp-kit.json`.
+clasp creates the immutable version during that operation. `clasp-kit` then prints the automatic HEAD deployment's `/dev` URL, when HEAD was present in the deployment listing, and the selected versioned deployment's `/exec` URL. Only the versioned production deployment ID is saved in `.clasp-kit.json`. On a first deployment, Google may expose the new HEAD entry after a short propagation delay; run `clasp-kit dev-url` once it appears.
 
 `clasp-kit deploy --dry-run` does not push code, write the manifest, create a version, or change a deployment. It still queries the real deployment list to determine whether the command would create or update, so clasp authentication and network access are required.
 
@@ -196,13 +196,15 @@ clasp-kit push-dev
 
 ### `clasp-kit dev-url`
 
-Reads `.clasp.json` and prints the `/dev` URL.
+Reads `.clasp.json`, discovers the automatic `@HEAD` deployment with `clasp --json deployments`, and prints its `/dev` URL.
 
-If `.clasp-kit.json` has a saved default deployment ID, that value is used. You can also pass a deployment ID explicitly:
+`.clasp-kit.json` is intentionally ignored because it stores the default versioned production deployment. You may pass the HEAD ID explicitly as a safety check:
 
 ```sh
-clasp-kit dev-url <deployment-id>
+clasp-kit dev-url <head-deployment-id>
 ```
+
+Passing a versioned production deployment ID is rejected.
 
 For scripting, print only the URL:
 
@@ -292,8 +294,8 @@ clasp-kit remote <url> --push
 
 Apps Script web apps commonly have two important URLs:
 
-- `/dev` uses the latest HEAD code. This is ideal for testing local changes after `clasp push`.
-- `/exec` usually points to a versioned deployment. To update it, create a version and redeploy production.
+- `/dev` uses the latest HEAD code only when paired with the automatic `@HEAD` deployment ID. This is ideal for testing local changes after `clasp push`.
+- `/exec` points to a separate versioned deployment ID. To update it, create a version and redeploy production.
 
 `clasp push` updates HEAD only. It does not automatically update a versioned production `/exec` deployment.
 

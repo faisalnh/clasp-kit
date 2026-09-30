@@ -1,6 +1,6 @@
 import { writeDefaultDeploymentId } from '../lib/kit-config.js';
 import { readClaspConfig } from '../lib/files.js';
-import { devUrl, execUrl } from '../lib/script-id.js';
+import { execUrl } from '../lib/script-id.js';
 import { CliError } from '../lib/errors.js';
 import { log, success } from '../lib/logger.js';
 
@@ -19,6 +19,6 @@ export function useDeploymentCommand(args, options = {}) {
   });
 
   success(`Default deployment ID ${result.action}: ${deploymentId}`);
-  log(`Development URL: ${devUrl(deploymentId)}`);
   log(`Production URL: ${execUrl(deploymentId)}`);
+  log('Use clasp-kit dev-url for the automatic @HEAD development URL.');
 }
